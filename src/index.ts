@@ -39,16 +39,3 @@ export function createStore<T>(initialValue: T, name: string) {
 
   return { store, addWatch, triggerWatch, useWatch }
 }
-
-type Store = { a?: { b: { l: { id: string; n: number }[]; s: string } } }
-const { store, addWatch, triggerWatch, useWatch } = createStore<Store>({}, 'mystore')
-const removeWatch = addWatch(() => console.log('store updated'))
-triggerWatch()
-removeWatch()
-triggerWatch()
-
-function MyComponent() {
-  const b = useWatch((store) => store.a?.b)
-  
-  return null
-}
