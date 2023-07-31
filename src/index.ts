@@ -1,47 +1,98 @@
-import { Ref, useEffect, useRef, useState } from 'react'
+import onChange from "on-change"
+import { useEffect, useRef, useState } from "react"
 
-const globalStore: {[key: string]: {}} = {}
 const et = new EventTarget()
+const storeNames: string[] = []
 
-/**
- * Create a watchi store
- * @param initialValue initial store value
- * @param name name of store
- * @returns created store
- */
-export function createStore<T extends object>(initialValue: T, name: string) {
-  if (name in globalStore) throw `Store "${name}" already exists`
-
-  const store = initialValue
-  globalStore[name] = store
-  const eventType = `${name.toUpperCase()}_WATCHI_UPDATE`
-  const event = new Event(eventType)
+export default class Store<Store extends {}> {
+  eventType: string
+  event: Event
+  store: Store
 
   /**
-   * Add a listener to changes in the store
+   * Initialize a Watchi store
+   * @param initialValue initial store stote
+   * @param name name of store (must be unique)
+   * @returns created store
    */
-  function addWatch(callback: () => unknown) {
-    et.addEventListener(eventType, callback)
-    return () => et.removeEventListener(eventType, callback)
+  constructor(initialValue: Store, name: string) {
+    if (storeNames.includes(name.toUpperCase())) throw `Store "${name}" already exists`
+
+    this.eventType = `${name.toUpperCase()}_WATCHI_UPDATE`
+    this.event = new Event(this.eventType)
+
+    this.store = onChange(initialValue, () => this.trigger())
+    storeNames.push(name.toUpperCase())
   }
 
   /**
    * Trigger changes in the store, triggers all watches
    */
-  function triggerWatch() {
-    et.dispatchEvent(event)
+  trigger() {
+    et.dispatchEvent(this.event)
+  }
+
+  /**
+   * Add a listener to changes in the store
+   */
+  watch(callback: () => unknown) {
+    et.addEventListener(this.eventType, callback)
+    return () => et.removeEventListener(this.eventType, callback)
+  }
+
+  /**
+   * Perform a revertable action on the store,
+   * the callback provides a revertable instance of the store,
+   * changes made to the store itself will not be seen and thus not be reverted
+   */
+  revertable(action: (store: Store, revert: () => void) => unknown) {
+    return revertableObject(this.store, action)
+  }
+
+  /**
+   * Perform a transaction on the store, changes to the store will only be applied when the transactions finishes successfully,
+   * Changes made in a failed transaction will be reverted.
+   * Use the store instance provided in the action callback!, changes will otherwise not be applied
+   */
+  transaction(action: (store: Store) => unknown) {
+    const uncommitableStore = onChange.target(this.store)
+
+    revertableObject(uncommitableStore, (transactionStore, revert) => {
+      try {
+        action(transactionStore)
+        this.trigger()
+      } catch(err) {
+        revert()
+        throw err
+      }
+    })
+  }
+
+  /**
+   * Perform a revertable action on the store, actions are reverted when an error is caught
+   * @param action action which can be reverted
+   * @param onError return a boolean indicate whether to revert or not
+   */
+  revertOnError(action: () => unknown, onError?: (error: unknown) => boolean | void) {
+    const before = structuredClone(this.store)
+    try {
+      action()
+    } catch (err) {
+      if ((onError ? onError(err) : true) === true) Object.assign(this.store, before)
+      if (!onError) throw err
+    }
   }
 
   /**
    * Watch for values in the store, rerenders when watch is triggered and value changed
    */
-  function useWatch<SelectRes>(select: (store: T) => SelectRes): SelectRes {
-    const [state, setState] = useState<SelectRes>(select(store))
+  useWatch<SelectRes>(select: (store: Store) => SelectRes): SelectRes {
+    const [state, setState] = useState<SelectRes>(select(this.store))
     const stateRef = useRef(state)
 
     useEffect(() => {
-      const removeWatch = addWatch(() => {
-        const selectRes = select(store)
+      const removeWatch = this.watch(() => {
+        const selectRes = select(this.store)
 
         if (!Object.is(selectRes, stateRef.current)) {
           setState(selectRes)
@@ -59,12 +110,12 @@ export function createStore<T extends object>(initialValue: T, name: string) {
   /**
    * Watch for values in the store using ref, does not rerender on change
    */
-  function useRefWatch<SelectRes>(select: (store: T) => SelectRes) {
-    const ref = useRef<SelectRes>(select(store))
+  useRefWatch<SelectRes>(select: (store: Store) => SelectRes) {
+    const ref = useRef<SelectRes>(select(this.store))
 
     useEffect(() => {
-      const removeWatch = addWatch(() => {
-        const selectRes = select(store)
+      const removeWatch = this.watch(() => {
+        const selectRes = select(this.store)
         if (!Object.is(selectRes, ref.current)) ref.current = selectRes
       })
 
@@ -74,22 +125,34 @@ export function createStore<T extends object>(initialValue: T, name: string) {
 
     return ref
   }
+}
 
-  /**
-   * Perform a revertable action on the store, actions are reverted when an error is caught
-   * @param action action which can be reverted
-   * @param onError return a boolean indicate whether to revert or not
-   */
-  function revertOnError(action: () => unknown, onError?: (error: unknown) => boolean | void) {
-    const before = structuredClone(store)
-    try {
-      action()
-    } catch(error) {
-      if ((onError ? onError(error) : true) === true) {
-        Object.assign(store, before)
-      }
+function setFromPath(object: any, path: (string | symbol)[], value: unknown) {
+  const last = path.at(-1)
+  if (last === null || last === undefined) return
+
+  for (let i = 0; i < path.length - 1; i++) object = object[path[i]]
+  
+  object[last] = value
+}
+
+function revertableObject<T extends {}>(object: T, action: (store: T, revert: () => void) => unknown) {
+  // path, previousValue
+  const changes: [(string | symbol)[], unknown][] = []
+
+  const watched = onChange(
+    object,
+    (path, _value, previousValue) => {
+      changes.push([path, previousValue])
+    },
+    { pathAsArray: true }
+  )
+
+  function revert() {
+    for (const [path, value] of changes.reverse()) {
+      setFromPath(object, path, value)
     }
   }
 
-  return { store, addWatch, triggerWatch, useWatch, useRefWatch, revertOnError }
+  action(watched, revert)
 }
