@@ -1,6 +1,6 @@
 {
   "name": "watchi-store",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "small and performant state management for React",
   "main": "index.js",
   "scripts": {
@@ -13,17 +13,16 @@
   "keywords": [
     "react"
   ],
-  "author": "serg-and",
+  "author": "https://github.com/serg-and",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/serg-and/watchi-store/issues"
   },
   "homepage": "https://github.com/serg-and/watchi-store#readme",
-  "dependencies": {
-    "react": "^18.2.0",
-    "typescript": "^5.1.6"
-  },
   "devDependencies": {
-    "@types/react": "^18.2.17"
+    "@types/react": "^18.2.17",
+    "react": "^18.2.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
   }
 }
