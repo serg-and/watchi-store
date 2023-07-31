@@ -107,15 +107,17 @@ var Store = class {
     }
   }
   /**
-   * Watch for values in the store, rerenders when watch is triggered and value changed
+   * Watch for values in the store, rerenders when watch is triggered and value changed,
+   * optionally provide a function that determines wether to update the state
+   * or simply pass `true` to always update even if the value didn't change
    */
-  useWatch(select) {
+  useWatch(select, update = (a, b) => !Object.is(a, b)) {
     const [state, setState] = (0, import_react.useState)(select(this.store));
     const stateRef = (0, import_react.useRef)(state);
     (0, import_react.useEffect)(() => {
       const removeWatch = this.watch(() => {
         const selectRes = select(this.store);
-        if (!Object.is(selectRes, stateRef.current)) {
+        if (typeof update === "boolean" ? update : update(selectRes, stateRef.current)) {
           setState(selectRes);
           stateRef.current = selectRes;
         }

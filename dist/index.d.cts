@@ -38,9 +38,11 @@ declare class Store<Store extends {}> {
      */
     revertOnError(action: () => unknown, onError?: (error: unknown) => boolean | void): void;
     /**
-     * Watch for values in the store, rerenders when watch is triggered and value changed
+     * Watch for values in the store, rerenders when watch is triggered and value changed,
+     * optionally provide a function that determines wether to update the state
+     * or simply pass `true` to always update even if the value didn't change
      */
-    useWatch<SelectRes>(select: (store: Store) => SelectRes): SelectRes;
+    useWatch<SelectRes>(select: (store: Store) => SelectRes, update?: (a: SelectRes, b: SelectRes) => boolean | boolean): SelectRes;
     /**
      * Watch for values in the store using ref, does not rerender on change
      */
