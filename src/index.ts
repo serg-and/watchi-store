@@ -1,5 +1,5 @@
-import onChange from "on-change"
-import { useEffect, useRef, useState } from "react"
+import onChange from 'on-change'
+import { useEffect, useRef, useState } from 'react'
 
 const et = new EventTarget()
 const storeNames: string[] = []
@@ -61,7 +61,7 @@ export default class Store<Store extends {}> {
       try {
         action(transactionStore)
         this.trigger()
-      } catch(err) {
+      } catch (err) {
         revert()
         throw err
       }
@@ -84,9 +84,14 @@ export default class Store<Store extends {}> {
   }
 
   /**
-   * Watch for values in the store, rerenders when watch is triggered and value changed
+   * Watch for values in the store, rerenders when watch is triggered and value changed,
+   * optionally provide a function that determines wether to update the state
+   * or simply pass `true` to always update even if the value didn't change
    */
-  useWatch<SelectRes>(select: (store: Store) => SelectRes): SelectRes {
+  useWatch<SelectRes>(
+    select: (store: Store) => SelectRes,
+    update: (a: SelectRes, b: SelectRes) => boolean | boolean = (a, b) => !Object.is(a, b)
+  ): SelectRes {
     const [state, setState] = useState<SelectRes>(select(this.store))
     const stateRef = useRef(state)
 
@@ -132,7 +137,7 @@ function setFromPath(object: any, path: (string | symbol)[], value: unknown) {
   if (last === null || last === undefined) return
 
   for (let i = 0; i < path.length - 1; i++) object = object[path[i]]
-  
+
   object[last] = value
 }
 
