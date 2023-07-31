@@ -1,7 +1,7 @@
 Watchi-store is a simple typescript compatible state management library for React, focused on controllability and performance.
 
 ## Features
-* Tiny package
+* Tiny package (1.9kB minified)
 * Highly controllable
 * Easily create multiple stores
 * Update store from anywhere, no dispatches, no reducers, just change values
