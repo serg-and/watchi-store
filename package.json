@@ -1,11 +1,11 @@
 {
   "name": "watchi-store",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Small, controllable and performant state management for React",
   "main": "./dist/index.cjs",
-  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "publish": "npx tsup src/index.ts --dts && npm publish"
   },
   "repository": {
     "type": "git",
