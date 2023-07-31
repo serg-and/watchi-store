@@ -99,7 +99,7 @@ export default class Store<Store extends {}> {
       const removeWatch = this.watch(() => {
         const selectRes = select(this.store)
 
-        if (!Object.is(selectRes, stateRef.current)) {
+        if (typeof update === 'boolean' ? update : update(selectRes, stateRef.current)) {
           setState(selectRes)
           stateRef.current = selectRes
         }
