@@ -1,6 +1,6 @@
 {
   "name": "watchi-store",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Small, controllable and performant state management for React",
   "main": "./dist/index.cjs",
   "type": "module",
