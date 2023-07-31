@@ -21,8 +21,18 @@ export default class Store<Store extends {}> {
     this.eventType = `${name.toUpperCase()}_WATCHI_UPDATE`
     this.event = new Event(this.eventType)
 
-    this.store = onChange(initialValue, () => this.trigger())
+    this.store = this.set(initialValue)
     storeNames.push(name.toUpperCase())
+  }
+
+  /**
+   * Set a new root value for the store
+   */
+  set(value: Store) {
+    if (this.store) onChange.unsubscribe(this.store)
+    this.store = onChange(value, () => this.trigger())
+
+    return this.store
   }
 
   /**
@@ -78,7 +88,9 @@ export default class Store<Store extends {}> {
     try {
       action()
     } catch (err) {
-      if ((onError ? onError(err) : true) === true) Object.assign(this.store, before)
+      if ((onError ? onError(err) : true) === true) this.set(before)
+      
+      // throw error if not caught by `onError` option
       if (!onError) throw err
     }
   }

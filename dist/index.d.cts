@@ -12,6 +12,10 @@ declare class Store<Store extends {}> {
      */
     constructor(initialValue: Store, name: string);
     /**
+     * Set a new root value for the store
+     */
+    set(value: Store): Store;
+    /**
      * Trigger changes in the store, triggers all watches
      */
     trigger(): void;
