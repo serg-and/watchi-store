@@ -23,6 +23,9 @@ export default class Store<Store extends {}> {
 
     this.store = this.set(initialValue)
     storeNames.push(name.toUpperCase())
+
+    this.useWatch = this.useWatch.bind(this)
+    this.useRefWatch = this.useRefWatch.bind(this)
   }
 
   /**
@@ -64,12 +67,12 @@ export default class Store<Store extends {}> {
    * Changes made in a failed transaction will be reverted.
    * Use the store instance provided in the action callback!, changes will otherwise not be applied
    */
-  transaction(action: (store: Store) => unknown) {
+  async transaction(action: (store: Store) => unknown) {
     const uncommitableStore = onChange.target(this.store)
 
-    revertableObject(uncommitableStore, (transactionStore, revert) => {
+    revertableObject(uncommitableStore, async (transactionStore, revert) => {
       try {
-        action(transactionStore)
+        await action(transactionStore)
         this.trigger()
       } catch (err) {
         revert()
@@ -82,14 +85,16 @@ export default class Store<Store extends {}> {
    * Perform a revertable action on the store, actions are reverted when an error is caught
    * @param action action which can be reverted
    * @param onError return a boolean indicate whether to revert or not
+   *
+   * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
    */
-  revertOnError(action: () => unknown, onError?: (error: unknown) => boolean | void) {
-    const before = structuredClone(this.store)
+  async revertOnError(action: () => unknown, onError?: (error: unknown) => boolean | void) {
+    const before = structuredClone(onChange.target(this.store))
     try {
-      action()
+      await action()
     } catch (err) {
       if ((onError ? onError(err) : true) === true) this.set(before)
-      
+
       // throw error if not caught by `onError` option
       if (!onError) throw err
     }
@@ -109,9 +114,15 @@ export default class Store<Store extends {}> {
 
     useEffect(() => {
       const removeWatch = this.watch(() => {
-        const selectRes = select(this.store)
+        let selectRes = select(this.store)
 
         if (typeof update === 'boolean' ? update : update(selectRes, stateRef.current)) {
+          // clone object if update is forced to true and select has the same reference as current state
+          if (selectRes === stateRef.current && typeof selectRes === 'object') {
+            // @ts-expect-error
+            if (Array.isArray(selectRes)) selectRes = selectRes.slice(0)
+            else selectRes = Object.assign({}, selectRes)
+          }
           setState(selectRes)
           stateRef.current = selectRes
         }
@@ -146,7 +157,18 @@ export default class Store<Store extends {}> {
 
 function setFromPath(object: any, path: (string | symbol)[], value: unknown) {
   const last = path.at(-1)
-  if (last === null || last === undefined) return
+  if (last === null) return
+  if (last === undefined) {
+    // array methods on the root of the store do not have a path
+    // we cannot reassign to object itself when changes are made to the root object
+    // so add changes back to object
+    if (Array.isArray(object) && Array.isArray(value)) {
+      object.splice(0, object.length)
+      for (const el of value) object.push(el)
+    }
+
+    return
+  }
 
   for (let i = 0; i < path.length - 1; i++) object = object[path[i]]
 
@@ -166,6 +188,7 @@ function revertableObject<T extends {}>(object: T, action: (store: T, revert: ()
   )
 
   function revert() {
+    console.log({ changes })
     for (const [path, value] of changes.reverse()) {
       setFromPath(object, path, value)
     }

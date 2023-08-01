@@ -34,13 +34,15 @@ declare class Store<Store extends {}> {
      * Changes made in a failed transaction will be reverted.
      * Use the store instance provided in the action callback!, changes will otherwise not be applied
      */
-    transaction(action: (store: Store) => unknown): void;
+    transaction(action: (store: Store) => unknown): Promise<void>;
     /**
      * Perform a revertable action on the store, actions are reverted when an error is caught
      * @param action action which can be reverted
      * @param onError return a boolean indicate whether to revert or not
+     *
+     * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
      */
-    revertOnError(action: () => unknown, onError?: (error: unknown) => boolean | void): void;
+    revertOnError(action: () => unknown, onError?: (error: unknown) => boolean | void): Promise<void>;
     /**
      * Watch for values in the store, rerenders when watch is triggered and value changed,
      * optionally provide a function that determines wether to update the state
