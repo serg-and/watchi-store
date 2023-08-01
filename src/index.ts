@@ -1,28 +1,34 @@
 import onChange from 'on-change'
 import { useEffect, useRef, useState } from 'react'
 
+type OnError = (error: unknown) => boolean | void
+type StoreOptions = { defaultOnError?: OnError }
+
 const et = new EventTarget()
 const storeNames: string[] = []
+let idTracker = 0
 
 export default class Store<Store extends {}> {
+  id: number
   eventType: string
   event: Event
   store: Store
-
+  options: StoreOptions
   /**
    * Initialize a Watchi store
-   * @param initialValue initial store stote
-   * @param name name of store (must be unique)
+   * @param initialValue initial store store
+   * @param options additional options for the store
    * @returns created store
    */
-  constructor(initialValue: Store, name: string) {
-    if (storeNames.includes(name.toUpperCase())) throw `Store "${name}" already exists`
+  constructor(initialValue: Store, options: StoreOptions = {}) {
+    this.options = options
+    this.id = idTracker
+    idTracker++
 
-    this.eventType = `${name.toUpperCase()}_WATCHI_UPDATE`
+    this.eventType = `STORE_${this.id}_WATCHI_UPDATE`
     this.event = new Event(this.eventType)
 
     this.store = this.set(initialValue)
-    storeNames.push(name.toUpperCase())
 
     this.useWatch = this.useWatch.bind(this)
     this.useRefWatch = this.useRefWatch.bind(this)
@@ -88,8 +94,10 @@ export default class Store<Store extends {}> {
    *
    * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
    */
-  async revertOnError(action: () => unknown, onError?: (error: unknown) => boolean | void) {
+  async revertOnError(action: () => unknown, onError?: OnError) {
+    if (!onError && this.options.defaultOnError) onError = this.options.defaultOnError
     const before = structuredClone(onChange.target(this.store))
+    
     try {
       await action()
     } catch (err) {

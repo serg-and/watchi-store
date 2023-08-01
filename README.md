@@ -8,7 +8,7 @@ Watchi-store is a simple typescript compatible state management library for Reac
 * Automatically update your UI, simply watch for values in the store
 * Use the props pattern with values from the store
 
-It's inspired by libraries like `Redux`, `Zustand` and `MobX`. The main difference between these libraries and Watchi-store is that this library does not enforce immutability in the store, changes anywhere in the store will cause watchees (listerns) and corresponding UI to be automatically updated. This can be useful when working with a large amount of deeply nested state that you want to control outside of the individual UI components, for example from actions.
+It's inspired by libraries like `Redux`, `Zustand` and `MobX`. The main difference between these libraries and Watchi-store is that this library does not enforce immutability in the store, changes anywhere in the store will cause watchers (listeners) and corresponding UI to be automatically updated. This can be useful when working with a large amount of deeply nested state that you want to control outside of the individual UI components, for example from actions.
 
 This library will most likely not offer any benefits if you are not working with large amounts of nested states or need improved state performance.
 
@@ -29,7 +29,7 @@ const myStore = new Store<MyStore>({
       n: 1,
     }
   }
-}, 'myStore')
+})
 ```
 
 Watch store values
@@ -62,11 +62,11 @@ function B(props: { b: { n: number }, increment: () => void }) {
 
 Update the store from anywhere
 ```tsx
-const { store: timeStore, useWatch: useWatchTime } = new Store({ passed: 0 }, 'timeStore')
-setTimeout(() => timeStore.passed++, 1000)
+const time = new Store({ passed: 0 })
+setTimeout(() => time.store.passed++, 1000)
 
 function Passed() {
-    const passed = useWatchTime(store => store.passed)
+    const passed = time.useWatch(store => store.passed)
 
     return <div>{passed} has passed</div>
 }

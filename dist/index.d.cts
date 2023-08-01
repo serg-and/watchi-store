@@ -1,16 +1,22 @@
 import * as react from 'react';
 
+type OnError = (error: unknown) => boolean | void;
+type StoreOptions = {
+    defaultOnError?: OnError;
+};
 declare class Store<Store extends {}> {
+    id: number;
     eventType: string;
     event: Event;
     store: Store;
+    options: StoreOptions;
     /**
      * Initialize a Watchi store
-     * @param initialValue initial store stote
-     * @param name name of store (must be unique)
+     * @param initialValue initial store store
+     * @param options additional options for the store
      * @returns created store
      */
-    constructor(initialValue: Store, name: string);
+    constructor(initialValue: Store, options?: StoreOptions);
     /**
      * Set a new root value for the store
      */
@@ -42,7 +48,7 @@ declare class Store<Store extends {}> {
      *
      * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
      */
-    revertOnError(action: () => unknown, onError?: (error: unknown) => boolean | void): Promise<void>;
+    revertOnError(action: () => unknown, onError?: OnError): Promise<void>;
     /**
      * Watch for values in the store, rerenders when watch is triggered and value changed,
      * optionally provide a function that determines wether to update the state
