@@ -95,16 +95,19 @@ export default class Store<Store extends {}> {
    * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
    */
   async revertOnError(action: () => unknown, onError?: OnError) {
-    if (!onError && this.options.defaultOnError) onError = this.options.defaultOnError
     const before = structuredClone(onChange.target(this.store))
     
     try {
       await action()
     } catch (err) {
+      // revertt state if required
       if ((onError ? onError(err) : true) === true) this.set(before)
-
-      // throw error if not caught by `onError` option
-      if (!onError) throw err
+      
+      if (!onError) {
+        if (this.options.defaultOnError) this.options.defaultOnError(err)
+        // throw error if not caught by `onError` option
+        else throw err
+      }
     }
   }
 
