@@ -36,10 +36,15 @@ export default class Store<Store extends {}> {
 
   /**
    * Set a new root value for the store
+   * 
+   * @param value new root value
+   * @param trigger whether or not to call trigger for store update
+   * @returns new root of store
    */
-  set(value: Store) {
+  set(value: Store, trigger = true) {
     if (this.store) onChange.unsubscribe(this.store)
     this.store = onChange(value, () => this.trigger())
+    if (trigger) this.trigger()
 
     return this.store
   }
@@ -101,7 +106,7 @@ export default class Store<Store extends {}> {
       await action()
     } catch (err) {
       // revertt state if required
-      if ((onError ? onError(err) : true) === true) this.set(before)
+      if ((onError ? onError(err) : true) === true) this.set(before, true)
       
       if (!onError) {
         if (this.options.defaultOnError) this.options.defaultOnError(err)

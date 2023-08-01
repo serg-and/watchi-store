@@ -19,8 +19,12 @@ declare class Store<Store extends {}> {
     constructor(initialValue: Store, options?: StoreOptions);
     /**
      * Set a new root value for the store
+     *
+     * @param value new root value
+     * @param trigger whether or not to call trigger for store update
+     * @returns new root of store
      */
-    set(value: Store): Store;
+    set(value: Store, trigger?: boolean): Store;
     /**
      * Trigger changes in the store, triggers all watches
      */
