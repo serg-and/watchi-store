@@ -1,8 +1,9 @@
 import * as react from 'react';
+import { ApplyData } from 'on-change';
 
 type OnError = (error: unknown) => boolean | void;
 type StoreOptions = {
-    defaultOnError?: OnError;
+    defaultOnError?: (error: unknown) => void;
 };
 declare class Store<Store extends {}> {
     id: number;
@@ -10,6 +11,7 @@ declare class Store<Store extends {}> {
     event: Event;
     store: Store;
     options: StoreOptions;
+    onChangeListeners: ((path: string[], value: unknown, previousValue: unknown, applyData: ApplyData) => void)[];
     /**
      * Initialize a Watchi store
      * @param initialValue initial store store
@@ -33,6 +35,8 @@ declare class Store<Store extends {}> {
      * Add a listener to changes in the store
      */
     watch(callback: () => unknown): () => void;
+    private withGlobalChanges;
+    private revertStoreChanges;
     /**
      * Perform a revertable action on the store,
      * the callback provides a revertable instance of the store,
@@ -40,19 +44,32 @@ declare class Store<Store extends {}> {
      */
     revertable(action: (store: Store, revert: () => void) => unknown): void;
     /**
+     * Perform a revertable action on the store,
+     * any changes made during the action will can be reverted, including changes outside of the action
+     */
+    revertableGlobal(action: (revert: () => void) => unknown): Promise<void>;
+    /**
      * Perform a transaction on the store, changes to the store will only be applied when the transactions finishes successfully,
      * Changes made in a failed transaction will be reverted.
      * Use the store instance provided in the action callback!, changes will otherwise not be applied
      */
     transaction(action: (store: Store) => unknown): Promise<void>;
     /**
-     * Perform a revertable action on the store, actions are reverted when an error is caught
-     * @param action action which can be reverted
+     * Perform an action on the store that is reverted when an error is caught
+     * @param action action with store instance for action
      * @param onError return a boolean indicate whether to revert or not
      *
      * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
      */
-    revertOnError(action: () => unknown, onError?: OnError): Promise<void>;
+    revertOnError(action: (store: Store) => unknown, onError?: OnError): void;
+    /**
+     * Perform a revertable action on the store, actions are reverted when an error is caught
+     * @param action action
+     * @param onError return a boolean indicate whether to revert or not
+     *
+     * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
+     */
+    revertOnErrorGlobal(action: () => unknown, onError?: OnError): Promise<void>;
     /**
      * Watch for values in the store, rerenders when watch is triggered and value changed,
      * optionally provide a function that determines wether to update the state

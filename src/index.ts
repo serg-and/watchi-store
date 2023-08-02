@@ -1,11 +1,11 @@
-import onChange from 'on-change'
+import onChange, { ApplyData } from 'on-change'
 import { useEffect, useRef, useState } from 'react'
 
 type OnError = (error: unknown) => boolean | void
-type StoreOptions = { defaultOnError?: OnError }
+type StoreOptions = { defaultOnError?: (error: unknown) => void }
+type Changes = [string[], unknown][]
 
 const et = new EventTarget()
-const storeNames: string[] = []
 let idTracker = 0
 
 export default class Store<Store extends {}> {
@@ -14,6 +14,8 @@ export default class Store<Store extends {}> {
   event: Event
   store: Store
   options: StoreOptions
+  onChangeListeners: ((path: string[], value: unknown, previousValue: unknown, applyData: ApplyData) => void)[] = []
+
   /**
    * Initialize a Watchi store
    * @param initialValue initial store store
@@ -22,9 +24,9 @@ export default class Store<Store extends {}> {
    */
   constructor(initialValue: Store, options: StoreOptions = {}) {
     this.options = options
+
     this.id = idTracker
     idTracker++
-
     this.eventType = `STORE_${this.id}_WATCHI_UPDATE`
     this.event = new Event(this.eventType)
 
@@ -36,14 +38,23 @@ export default class Store<Store extends {}> {
 
   /**
    * Set a new root value for the store
-   * 
+   *
    * @param value new root value
    * @param trigger whether or not to call trigger for store update
    * @returns new root of store
    */
   set(value: Store, trigger = true) {
     if (this.store) onChange.unsubscribe(this.store)
-    this.store = onChange(value, () => this.trigger())
+
+    this.store = onChange(
+      value,
+      (...args) => {
+        for (const listener of this.onChangeListeners) listener(...args)
+        this.trigger()
+      },
+      { pathAsArray: true, ignoreSymbols: true }
+    )
+
     if (trigger) this.trigger()
 
     return this.store
@@ -64,6 +75,24 @@ export default class Store<Store extends {}> {
     return () => et.removeEventListener(this.eventType, callback)
   }
 
+  private async withGlobalChanges(changes: Changes, action: () => unknown) {
+    const listener = (path: string[], _value: unknown, previousValue: unknown) => changes.push([path, previousValue])
+    this.onChangeListeners.push(listener)
+
+    try {
+      await action()
+    } finally {
+      const i = this.onChangeListeners.indexOf(listener)
+      if (i !== -1) this.onChangeListeners.splice(i, 1)
+    }
+  }
+
+  // revert changes on store withou triggering listeners, trigger when finished
+  private revertStoreChanges(changes: Changes) {
+    revertChanges(onChange.target(this.store), changes)
+    this.trigger()
+  }
+
   /**
    * Perform a revertable action on the store,
    * the callback provides a revertable instance of the store,
@@ -71,6 +100,16 @@ export default class Store<Store extends {}> {
    */
   revertable(action: (store: Store, revert: () => void) => unknown) {
     return revertableObject(this.store, action)
+  }
+
+  /**
+   * Perform a revertable action on the store,
+   * any changes made during the action will can be reverted, including changes outside of the action
+   */
+  async revertableGlobal(action: (revert: () => void) => unknown) {
+    const changes: Changes = []
+    // this.withGlobalChanges(changes, () => action(() => revertChanges(this.store, changes)))
+    await this.withGlobalChanges(changes, () => action(() => this.revertStoreChanges(changes)))
   }
 
   /**
@@ -93,27 +132,51 @@ export default class Store<Store extends {}> {
   }
 
   /**
-   * Perform a revertable action on the store, actions are reverted when an error is caught
-   * @param action action which can be reverted
+   * Perform an action on the store that is reverted when an error is caught
+   * @param action action with store instance for action
    * @param onError return a boolean indicate whether to revert or not
    *
    * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
    */
-  async revertOnError(action: () => unknown, onError?: OnError) {
-    const before = structuredClone(onChange.target(this.store))
-    
-    try {
-      await action()
-    } catch (err) {
-      // revertt state if required
-      if ((onError ? onError(err) : true) === true) this.set(before, true)
-      
-      if (!onError) {
-        if (this.options.defaultOnError) this.options.defaultOnError(err)
-        // throw error if not caught by `onError` option
-        else throw err
+  revertOnError(action: (store: Store) => unknown, onError?: OnError) {
+    this.revertable(async (store, revert) => {
+      try {
+        await action(store)
+      } catch (error) {
+        // revert state if required
+        if ((onError ? onError(error) : true) === true) revert()
+
+        if (!onError) {
+          if (this.options.defaultOnError) this.options.defaultOnError(error)
+          // throw error if not caught by `onError` option
+          else throw error
+        }
       }
-    }
+    })
+  }
+
+  /**
+   * Perform a revertable action on the store, actions are reverted when an error is caught
+   * @param action action
+   * @param onError return a boolean indicate whether to revert or not
+   *
+   * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
+   */
+  async revertOnErrorGlobal(action: () => unknown, onError?: OnError) {
+    await this.revertableGlobal(async revert => {
+      try {
+        await action()
+      } catch (error) {
+        // revert state if required
+        if ((onError ? onError(error) : true) === true) revert()
+
+        if (!onError) {
+          if (this.options.defaultOnError) this.options.defaultOnError(error)
+          // throw error if not caught by `onError` option
+          else throw error
+        }
+      }
+    })
   }
 
   /**
@@ -135,7 +198,7 @@ export default class Store<Store extends {}> {
         if (typeof update === 'boolean' ? update : update(selectRes, stateRef.current)) {
           // clone object if update is forced to true and select has the same reference as current state
           if (selectRes === stateRef.current && typeof selectRes === 'object') {
-            // @ts-expect-error
+            // @ts-expect-error type is known
             if (Array.isArray(selectRes)) selectRes = selectRes.slice(0)
             else selectRes = Object.assign({}, selectRes)
           }
@@ -171,7 +234,7 @@ export default class Store<Store extends {}> {
   }
 }
 
-function setFromPath(object: any, path: (string | symbol)[], value: unknown) {
+function setFromPath(object: any, path: string[], value: unknown) {
   const last = path.at(-1)
   if (last === null) return
   if (last === undefined) {
@@ -191,24 +254,29 @@ function setFromPath(object: any, path: (string | symbol)[], value: unknown) {
   object[last] = value
 }
 
+// reverts changes in reverse and empties changes array
+function revertChanges<T extends {}>(object: T, changes: Changes) {
+  while (changes.length) {
+    const el = changes.pop()
+    if (el) setFromPath(object, el[0], el[1])
+  }
+}
+
 function revertableObject<T extends {}>(object: T, action: (store: T, revert: () => void) => unknown) {
   // path, previousValue
-  const changes: [(string | symbol)[], unknown][] = []
+  const changes: Changes = []
 
   const watched = onChange(
     object,
     (path, _value, previousValue) => {
       changes.push([path, previousValue])
     },
-    { pathAsArray: true }
+    { pathAsArray: true, ignoreSymbols: true }
   )
 
-  function revert() {
-    console.log({ changes })
-    for (const [path, value] of changes.reverse()) {
-      setFromPath(object, path, value)
-    }
+  try {
+    action(watched, () => revertChanges(object, changes))
+  } finally {
+    onChange.unsubscribe(watched)
   }
-
-  action(watched, revert)
 }
