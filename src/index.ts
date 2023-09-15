@@ -43,7 +43,7 @@ export default class Store<Store extends {}> {
    * @param trigger whether or not to call trigger for store update
    * @returns new root of store
    */
-  set(value: Store, trigger = true) {
+  public set(value: Store, trigger = true) {
     if (this.store) onChange.unsubscribe(this.store)
 
     this.store = onChange(
@@ -63,14 +63,14 @@ export default class Store<Store extends {}> {
   /**
    * Trigger changes in the store, triggers all watches
    */
-  trigger() {
+  public trigger() {
     et.dispatchEvent(this.event)
   }
 
   /**
    * Add a listener to changes in the store
    */
-  watch(callback: () => unknown) {
+  public watch(callback: () => unknown) {
     et.addEventListener(this.eventType, callback)
     return () => et.removeEventListener(this.eventType, callback)
   }
@@ -98,15 +98,15 @@ export default class Store<Store extends {}> {
    * the callback provides a revertable instance of the store,
    * changes made to the store itself will not be seen and thus not be reverted
    */
-  revertable(action: (store: Store, revert: () => void) => unknown) {
+  public revertable(action: (store: Store, revert: () => void) => unknown) {
     return revertableObject(this.store, action)
   }
 
   /**
    * Perform a revertable action on the store,
-   * any changes made during the action will can be reverted, including changes outside of the action
+   * any changes made during the action can be reverted, including changes outside of the action
    */
-  async revertableGlobal(action: (revert: () => void) => unknown) {
+  public async revertableGlobal(action: (revert: () => void) => unknown) {
     const changes: Changes = []
     // this.withGlobalChanges(changes, () => action(() => revertChanges(this.store, changes)))
     await this.withGlobalChanges(changes, () => action(() => this.revertStoreChanges(changes)))
@@ -117,7 +117,7 @@ export default class Store<Store extends {}> {
    * Changes made in a failed transaction will be reverted.
    * Use the store instance provided in the action callback!, changes will otherwise not be applied
    */
-  async transaction(action: (store: Store) => unknown) {
+  public async transaction(action: (store: Store) => unknown) {
     const uncommitableStore = onChange.target(this.store)
 
     revertableObject(uncommitableStore, async (transactionStore, revert) => {
@@ -136,9 +136,9 @@ export default class Store<Store extends {}> {
    * @param action action with store instance for action
    * @param onError return a boolean indicate whether to revert or not
    *
-   * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
+   * @warning reverts any changes made in the action
    */
-  revertOnError(action: (store: Store) => unknown, onError?: OnError) {
+  public revertOnError(action: (store: Store) => unknown, onError?: OnError) {
     this.revertable(async (store, revert) => {
       try {
         await action(store)
@@ -162,7 +162,7 @@ export default class Store<Store extends {}> {
    *
    * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
    */
-  async revertOnErrorGlobal(action: () => unknown, onError?: OnError) {
+  public async revertOnErrorGlobal(action: () => unknown, onError?: OnError) {
     await this.revertableGlobal(async revert => {
       try {
         await action()
@@ -184,18 +184,24 @@ export default class Store<Store extends {}> {
    * optionally provide a function that determines wether to update the state
    * or simply pass `true` to always update even if the value didn't change
    */
-  useWatch<SelectRes>(
+  public useWatch<SelectRes>(
     select: (store: Store) => SelectRes,
-    update: (a: SelectRes, b: SelectRes) => boolean | boolean = (a, b) => !Object.is(a, b)
+    update: ((a: SelectRes, b: SelectRes) => boolean) | boolean = (a, b) => !Object.is(a, b)
   ): SelectRes {
     const [state, setState] = useState<SelectRes>(select(this.store))
     const stateRef = useRef(state)
+    
+    // store passed functions by reference so changes are visible in the created callback
+    const selectRef = useRef(select)
+    const updateRef = useRef(update)
+    selectRef.current = select
+    updateRef.current = update
 
     useEffect(() => {
       const removeWatch = this.watch(() => {
-        let selectRes = select(this.store)
+        let selectRes = selectRef.current(this.store)
 
-        if (typeof update === 'boolean' ? update : update(selectRes, stateRef.current)) {
+        if (typeof updateRef.current === 'boolean' ? updateRef.current : updateRef.current(selectRes, stateRef.current)) {
           // clone object if update is forced to true and select has the same reference as current state
           if (selectRes === stateRef.current && typeof selectRes === 'object') {
             // @ts-expect-error type is known
@@ -217,12 +223,14 @@ export default class Store<Store extends {}> {
   /**
    * Watch for values in the store using ref, does not rerender on change
    */
-  useRefWatch<SelectRes>(select: (store: Store) => SelectRes) {
+  public useRefWatch<SelectRes>(select: (store: Store) => SelectRes) {
     const ref = useRef<SelectRes>(select(this.store))
+    const selectRef = useRef(select)
+    selectRef.current = select
 
     useEffect(() => {
       const removeWatch = this.watch(() => {
-        const selectRes = select(this.store)
+        const selectRes = selectRef.current(this.store)
         if (!Object.is(selectRes, ref.current)) ref.current = selectRes
       })
 

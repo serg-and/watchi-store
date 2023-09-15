@@ -76,5 +76,7 @@ function Passed() {
 `useRefWatch()`: Watch store without rerendering UI on changes<br>
 `watch()`: Call callback whenever the store updates<br>
 `revertable()`: Perform a revertable action on the store<br>
+`revertableGlobal()`: Like `revertable` but any changes made during the action will can be reverted, including changes outside of the action<br>
 `transaction()`: Perform a transaction on the store, changes to the store will only be applied when the transactions finishes successfully<br>
 `revertOnError()`: Perform a revertable action on the store, actions are reverted when an error is caught<br>
+`revertOnErrorGlobal()`: Like `revertOnError` but reverts all changes made during the action, including changes outside of the action<br>
