@@ -45,7 +45,7 @@ declare class Store<Store extends {}> {
     revertable(action: (store: Store, revert: () => void) => unknown): void;
     /**
      * Perform a revertable action on the store,
-     * any changes made during the action will can be reverted, including changes outside of the action
+     * any changes made during the action can be reverted, including changes outside of the action
      */
     revertableGlobal(action: (revert: () => void) => unknown): Promise<void>;
     /**
@@ -59,7 +59,7 @@ declare class Store<Store extends {}> {
      * @param action action with store instance for action
      * @param onError return a boolean indicate whether to revert or not
      *
-     * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
+     * @warning reverts any changes made in the action
      */
     revertOnError(action: (store: Store) => unknown, onError?: OnError): void;
     /**
@@ -75,7 +75,7 @@ declare class Store<Store extends {}> {
      * optionally provide a function that determines wether to update the state
      * or simply pass `true` to always update even if the value didn't change
      */
-    useWatch<SelectRes>(select: (store: Store) => SelectRes, update?: (a: SelectRes, b: SelectRes) => boolean | boolean): SelectRes;
+    useWatch<SelectRes>(select: (store: Store) => SelectRes, update?: ((a: SelectRes, b: SelectRes) => boolean) | boolean): SelectRes;
     /**
      * Watch for values in the store using ref, does not rerender on change
      */
