@@ -80,3 +80,4 @@ function Passed() {
 `transaction()`: Perform a transaction on the store, changes to the store will only be applied when the transactions finishes successfully<br>
 `revertOnError()`: Perform a revertable action on the store, actions are reverted when an error is caught<br>
 `revertOnErrorGlobal()`: Like `revertOnError` but reverts all changes made during the action, including changes outside of the action<br>
+`target()`: Returns the original unwatched object of a watched object<br>

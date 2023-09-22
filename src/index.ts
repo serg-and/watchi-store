@@ -18,15 +18,14 @@ export default class Store<Store extends {}> {
 
   /**
    * Initialize a Watchi store
-   * @param initialValue initial store store
+   * @param initialValue initial store state
    * @param options additional options for the store
    * @returns created store
    */
   constructor(initialValue: Store, options: StoreOptions = {}) {
     this.options = options
 
-    this.id = idTracker
-    idTracker++
+    this.id = idTracker++
     this.eventType = `STORE_${this.id}_WATCHI_UPDATE`
     this.event = new Event(this.eventType)
 
@@ -52,7 +51,7 @@ export default class Store<Store extends {}> {
         for (const listener of this.onChangeListeners) listener(...args)
         this.trigger()
       },
-      { pathAsArray: true, ignoreSymbols: true }
+      { pathAsArray: true, ignoreSymbols: true, ignoreDetached: true }
     )
 
     if (trigger) this.trigger()
@@ -239,6 +238,14 @@ export default class Store<Store extends {}> {
     }, [])
 
     return ref
+  }
+
+  /**
+	@param object - Object that is already being watched for changes.
+	@returns The original unwatched object.
+	*/
+  public target<T extends {}>(object: T): T {
+    return onChange.target(object)
   }
 }
 
