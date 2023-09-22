@@ -51,7 +51,7 @@ export default class Store<Store extends {}> {
         for (const listener of this.onChangeListeners) listener(...args)
         this.trigger()
       },
-      { pathAsArray: true, ignoreSymbols: true, ignoreDetached: true }
+      { pathAsArray: true, ignoreSymbols: true }
     )
 
     if (trigger) this.trigger()
