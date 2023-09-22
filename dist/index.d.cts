@@ -14,7 +14,7 @@ declare class Store<Store extends {}> {
     onChangeListeners: ((path: string[], value: unknown, previousValue: unknown, applyData: ApplyData) => void)[];
     /**
      * Initialize a Watchi store
-     * @param initialValue initial store store
+     * @param initialValue initial store state
      * @param options additional options for the store
      * @returns created store
      */
@@ -80,6 +80,11 @@ declare class Store<Store extends {}> {
      * Watch for values in the store using ref, does not rerender on change
      */
     useRefWatch<SelectRes>(select: (store: Store) => SelectRes): react.MutableRefObject<SelectRes>;
+    /**
+      @param object - Object that is already being watched for changes.
+      @returns The original unwatched object.
+      */
+    target<T extends {}>(object: T): T;
 }
 
 export { Store as default };
