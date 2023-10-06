@@ -201,27 +201,24 @@ export default class Store<Store extends {}> {
 
     useEffect(() => {
       // prevent double mounting with strict mode, in development
-      if (mounted) {
-        if (mounted.current) return
-        mounted.current = true
-      }
-
-      const removeWatch = this.watch(() => {
-        let selectRes = selectRef.current(this.store)
-
-        if (typeof updateRef.current === 'boolean' ? updateRef.current : updateRef.current(selectRes, stateRef.current)) {
-          // clone object if update is forced to true and select has the same reference as current state
-          if (selectRes === stateRef.current && typeof selectRes === 'object') {
-            // @ts-expect-error type is known
-            if (Array.isArray(selectRes)) selectRes = selectRes.slice(0)
-            else selectRes = Object.assign({}, selectRes)
+      if (!mounted?.current) {
+        if (mounted) mounted.current = true
+        
+        return this.watch(() => {
+          let selectRes = selectRef.current(this.store)
+  
+          if (typeof updateRef.current === 'boolean' ? updateRef.current : updateRef.current(selectRes, stateRef.current)) {
+            // clone object if update is forced to true and select has the same reference as current state
+            if (selectRes === stateRef.current && typeof selectRes === 'object') {
+              // @ts-expect-error type is known
+              if (Array.isArray(selectRes)) selectRes = selectRes.slice(0)
+              else selectRes = Object.assign({}, selectRes)
+            }
+            setState(selectRes)
+            stateRef.current = selectRes
           }
-          setState(selectRes)
-          stateRef.current = selectRes
-        }
-      })
-
-      return removeWatch
+        })
+      }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
@@ -239,17 +236,14 @@ export default class Store<Store extends {}> {
 
     useEffect(() => {
       // prevent double mounting with strict mode, in development
-      if (mounted) {
-        if (mounted.current) return
-        mounted.current = true
+      if (!mounted?.current) {
+        if (mounted) mounted.current = true
+
+        return this.watch(() => {
+          const selectRes = selectRef.current(this.store)
+          if (!Object.is(selectRes, ref.current)) ref.current = selectRes
+        })
       }
-
-      const removeWatch = this.watch(() => {
-        const selectRes = selectRef.current(this.store)
-        if (!Object.is(selectRes, ref.current)) ref.current = selectRes
-      })
-
-      return removeWatch
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
