@@ -5,6 +5,8 @@ type OnError = (error: unknown) => boolean | void
 type StoreOptions = { defaultOnError?: (error: unknown) => void }
 type Changes = [string[], unknown][]
 
+const isStrict = !this
+
 const et = new EventTarget()
 let idTracker = 0
 
@@ -189,6 +191,7 @@ export default class Store<Store extends {}> {
   ): SelectRes {
     const [state, setState] = useState<SelectRes>(select(this.store))
     const stateRef = useRef(state)
+    const mounted = isStrict ? useRef(false) : undefined
     
     // store passed functions by reference so changes are visible in the created callback
     const selectRef = useRef(select)
@@ -197,6 +200,12 @@ export default class Store<Store extends {}> {
     updateRef.current = update
 
     useEffect(() => {
+      // prevent double mounting with strict mode, in development
+      if (mounted) {
+        if (mounted.current) return
+        mounted.current = true
+      }
+
       const removeWatch = this.watch(() => {
         let selectRes = selectRef.current(this.store)
 
@@ -224,10 +233,17 @@ export default class Store<Store extends {}> {
    */
   public useRefWatch<SelectRes>(select: (store: Store) => SelectRes) {
     const ref = useRef<SelectRes>(select(this.store))
+    const mounted = isStrict ? useRef(false) : undefined
     const selectRef = useRef(select)
     selectRef.current = select
 
     useEffect(() => {
+      // prevent double mounting with strict mode, in development
+      if (mounted) {
+        if (mounted.current) return
+        mounted.current = true
+      }
+
       const removeWatch = this.watch(() => {
         const selectRes = selectRef.current(this.store)
         if (!Object.is(selectRes, ref.current)) ref.current = selectRes
