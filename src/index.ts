@@ -74,16 +74,19 @@ export default class Store<Store extends {}> {
     return () => et.removeEventListener(this.eventType, callback)
   }
 
-  private async withGlobalChanges(changes: Changes, action: () => unknown) {
+  private async withGlobalChanges<R>(changes: Changes, action: () => R): Promise<Awaited<R>> {
     const listener = (path: string[], _value: unknown, previousValue: unknown) => changes.push([path, previousValue])
     this.onChangeListeners.push(listener)
 
+    let r: Awaited<R>
     try {
-      await action()
+      r = await action()
     } finally {
       const i = this.onChangeListeners.indexOf(listener)
       if (i !== -1) this.onChangeListeners.splice(i, 1)
     }
+
+    return r
   }
 
   // revert changes on store withou triggering listeners, trigger when finished
@@ -97,7 +100,7 @@ export default class Store<Store extends {}> {
    * the callback provides a revertable instance of the store,
    * changes made to the store itself will not be seen and thus not be reverted
    */
-  public revertable(action: (store: Store, revert: () => void) => unknown) {
+  public revertable<R>(action: (store: Store, revert: () => void) => R): R {
     return revertableObject(this.store, action)
   }
 
@@ -105,10 +108,9 @@ export default class Store<Store extends {}> {
    * Perform a revertable action on the store,
    * any changes made during the action can be reverted, including changes outside of the action
    */
-  public async revertableGlobal(action: (revert: () => void) => unknown) {
+  public async revertableGlobal<R>(action: (revert: () => void) => R): Promise<Awaited<R>> {
     const changes: Changes = []
-    // this.withGlobalChanges(changes, () => action(() => revertChanges(this.store, changes)))
-    await this.withGlobalChanges(changes, () => action(() => this.revertStoreChanges(changes)))
+    return await this.withGlobalChanges(changes, () => action(() => this.revertStoreChanges(changes)))
   }
 
   /**
@@ -279,7 +281,7 @@ function revertChanges<T extends {}>(object: T, changes: Changes) {
   }
 }
 
-function revertableObject<T extends {}>(object: T, action: (store: T, revert: () => void) => unknown) {
+function revertableObject<T extends {}, R>(object: T, action: (store: T, revert: () => void) => R): R {
   // path, previousValue
   const changes: Changes = []
 
@@ -291,9 +293,12 @@ function revertableObject<T extends {}>(object: T, action: (store: T, revert: ()
     { pathAsArray: true, ignoreSymbols: true }
   )
 
+  let r: R
   try {
-    action(watched, () => revertChanges(object, changes))
+    r = action(watched, () => revertChanges(object, changes))
   } finally {
     onChange.unsubscribe(watched)
   }
+
+  return r
 }
