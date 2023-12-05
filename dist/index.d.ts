@@ -42,12 +42,12 @@ declare class Store<Store extends {}> {
      * the callback provides a revertable instance of the store,
      * changes made to the store itself will not be seen and thus not be reverted
      */
-    revertable(action: (store: Store, revert: () => void) => unknown): void;
+    revertable<R>(action: (store: Store, revert: () => void) => R): R;
     /**
      * Perform a revertable action on the store,
      * any changes made during the action can be reverted, including changes outside of the action
      */
-    revertableGlobal(action: (revert: () => void) => unknown): Promise<void>;
+    revertableGlobal<R>(action: (revert: () => void) => R): Promise<Awaited<R>>;
     /**
      * Perform a transaction on the store, changes to the store will only be applied when the transactions finishes successfully,
      * Changes made in a failed transaction will be reverted.
