@@ -1,6 +1,6 @@
 {
   "name": "watchi-store",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Small, controllable and performant state management for React",
   "exports": {
     ".": {
