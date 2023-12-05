@@ -139,10 +139,10 @@ export default class Store<Store extends {}> {
    *
    * @warning reverts any changes made in the action
    */
-  public revertOnError(action: (store: Store) => unknown, onError?: OnError) {
-    this.revertable(async (store, revert) => {
+  public revertOnError<R>(action: (store: Store) => R, onError?: OnError): Promise<Awaited<R | undefined>> {
+    return this.revertable(async (store, revert): Promise<Awaited<R | undefined>> => {
       try {
-        await action(store)
+        return await action(store)
       } catch (error) {
         // revert state if required
         if ((onError ? onError(error) : true) === true) revert()
@@ -163,10 +163,10 @@ export default class Store<Store extends {}> {
    *
    * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
    */
-  public async revertOnErrorGlobal(action: () => unknown, onError?: OnError) {
-    await this.revertableGlobal(async revert => {
+  public async revertOnErrorGlobal<R>(action: () => R, onError?: OnError): Promise<Awaited<R | undefined>> {
+    return await this.revertableGlobal(async (revert): Promise<Awaited<R | undefined>> => {
       try {
-        await action()
+        return await action()
       } catch (error) {
         // revert state if required
         if ((onError ? onError(error) : true) === true) revert()
