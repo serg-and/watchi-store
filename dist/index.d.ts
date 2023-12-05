@@ -61,7 +61,7 @@ declare class Store<Store extends {}> {
      *
      * @warning reverts any changes made in the action
      */
-    revertOnError(action: (store: Store) => unknown, onError?: OnError): void;
+    revertOnError<R>(action: (store: Store) => R, onError?: OnError): Promise<Awaited<R | undefined>>;
     /**
      * Perform a revertable action on the store, actions are reverted when an error is caught
      * @param action action
@@ -69,7 +69,7 @@ declare class Store<Store extends {}> {
      *
      * @warning reverts to the previous state of the store, this includes changes made to the store outside of this action
      */
-    revertOnErrorGlobal(action: () => unknown, onError?: OnError): Promise<void>;
+    revertOnErrorGlobal<R>(action: () => R, onError?: OnError): Promise<Awaited<R | undefined>>;
     /**
      * Watch for values in the store, rerenders when watch is triggered and value changed,
      * optionally provide a function that determines wether to update the state
